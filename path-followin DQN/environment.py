@@ -27,6 +27,7 @@ step_A_bound = (0.035, 0.05)	# Boundary of the grad value of angular velocity
 INIT_CORR_NUM = 12 # (0,0)
 MAX_DEVIATION = 3
 
+MIN_MOVING = 1
 class environment():
 	def __init__(self, linearSize, angularSize):
 		# The information of sensors from simulator by ROS topic
@@ -65,6 +66,8 @@ class environment():
 		self.aStateNum = len(self.step_A_pool)
 		self.velocity,self.grad_ang = INIT_CTRL[0], INIT_CTRL[1]
 		self.aimPoint = [0.0]*3
+		self.endCal = 0
+		self.endCount = 0
 
 	# Callback functions for ROS topics
 	def pos_callback(self, msg1):
@@ -78,22 +81,37 @@ class environment():
 		self.disToOrigin = msg3.data[1]
 		return
 	def loc_callback(self, msg4):
+		tDx = 0
+		tDy = 0
 		if msg4.data[2] > 0.55:
+			tDx = msg4.data[0] - self.nowX
+			tDy = msg4.data[1] - self.nowY
 			self.nowX = msg4.data[0]
 			self.nowY = msg4.data[1]
 		if msg4.data[2] < 0.35:
 			self.endFlag = True
 		else:
 			self.endFlag = False
+		tDd = math.sqrt(tDx*tDx+tDy*tDy)
+		self.endCal += tDd
+		#print(tDd, ' -- ', self.endCount)
+		if self.endCal < MIN_MOVING:
+			self.endCount += 1
+			if self.endCount > 20:
+				self.endFlag  = True
+		else:
+			self.endCal = 0
+			self.endCount = 0
+		
 		return
 	# Publish to Simulator by ROS topic
 	def setCtrl(self, actionNum):
-		vPos = int(actionNum / self.vStateNum)
-		aPos = int(actionNum % self.aStateNum)
+		vPos = int(actionNum / self.aStateNum)
+		aPos = int(actionNum % self.vStateNum)
 		#gPos = int(action / self.vStateNum)
 		#print("--------------------------------------")
-		#print(vPos, ' --> ', step_V_pool[vPos])
-		#print(aPos, ' --> ', step_A_pool[aPos])
+		#print(vPos, ' --> ', self.step_V_pool)
+		#print(aPos, ' --> ', self.step_A_pool[aPos])
 		#print("--------------------------------------")
 		#self.velocity += step_V_pool[vPos]
 		#self.grad_ang += step_A_pool[aPos]
@@ -105,6 +123,8 @@ class environment():
 		self.rate.sleep()
 	def reset(self, client_id):
 		print ("reset successfully")
+		self.endCal = 0
+		self.endCount = 0
 		self.pMsg.data =[0.0]*2
 		self.motor_ctrl.publish(self.pMsg)
 		self.rate.sleep()

@@ -49,6 +49,7 @@ if __name__ == "__main__":
 	done = False
 	batch_size = 32
 	for e in range(EPISODES):
+		print("------------------------->  ", e)
 		print(agent.epsilon)
 		env.reset(clientID)
 		env.setCtrl(INIT_CORR_NUM)
@@ -61,6 +62,7 @@ if __name__ == "__main__":
 		for tt in range(TRAIN_STEP):
 			# Using the produced action to control the robot
 			# Collecting the learning information after controlling
+			print(action)
 			next_state, reward, done = env.step(action)
 			reward = reward if not done else -3*MAX_DEVIATION
 			next_state = np.reshape(next_state, [1, states_num])
@@ -83,6 +85,6 @@ if __name__ == "__main__":
 			time.sleep(0.05)
 			if tt%20 == 0:
 				action = agent.act(tState)		#??? may delete
-	agent.save("./save/dqn_mT2_121.h5")
+	agent.save("./save/dqn_mTT2_121.h5")
 	vrep.simxStopSimulation(clientID, vrep.simx_opmode_oneshot)
 	time.sleep(1)
